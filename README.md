@@ -73,7 +73,7 @@ Same input always maps to the same fake, so the text stays internally consistent
 — and it's fully reversible:
 
 ```js
-import { redact, restore } from "redactr";
+import { redact, restore } from "@vicbrzin/redactr";
 
 const { text, map } = redact(
   "charge ada@acme.com, card 4111 1111 1111 1111",
@@ -86,7 +86,7 @@ restore(modelReply, map); // real values back
 ```
 
 ```bash
-echo "cpf 529.982.247-25" | npx redactr --fake     # -> a different, valid CPF
+echo "cpf 529.982.247-25" | npx @vicbrzin/redactr --fake     # -> a different, valid CPF
 ```
 
 This makes Redactr two tools in one: a privacy shield for AI prompts **and** a
@@ -107,7 +107,7 @@ generator of safe, realistic test/sample data from production data.
   browser and in Node 18+.
 - 🧩 **20+ detectors** out of the box — API keys, tokens, PII, credit cards
   (Luhn-checked), Brazilian CPF/CNPJ (digit-checked), and more.
-- 🛡️ **Project scanner.** `npx redactr scan .` catches hardcoded secrets before
+- 🛡️ **Project scanner.** `npx @vicbrzin/redactr scan .` catches hardcoded secrets before
   you commit or publish them — works as a pre-commit / CI guard.
 - 🛠️ **Library + CLI + web UI**, all from one tiny codebase.
 
@@ -117,20 +117,20 @@ generator of safe, realistic test/sample data from production data.
 
 ```bash
 # Redact a log and save the mapping so you can restore later
-cat app.log | npx redactr --map map.json > clean.log
+cat app.log | npx @vicbrzin/redactr --map map.json > clean.log
 
 # Paste clean.log into ChatGPT... then restore the model's reply:
-npx redactr --restore map.json < model-reply.txt
+npx @vicbrzin/redactr --restore map.json < model-reply.txt
 ```
 
 ### As a library
 
 ```bash
-npm install redactr
+npm install @vicbrzin/redactr
 ```
 
 ```js
-import { redact, restore } from "redactr";
+import { redact, restore } from "@vicbrzin/redactr";
 
 const { text, map } = redact("ping ada@example.com, key sk-abc...123");
 // text -> "ping [[EMAIL_1]], key [[OPENAI_KEY_1]]"
@@ -158,7 +158,7 @@ before you commit or publish them** — so a leaked key never ends up on GitHub,
 in a screen share, or in a stolen repo.
 
 ```bash
-npx redactr scan .
+npx @vicbrzin/redactr scan .
 ```
 
 ```text
@@ -181,12 +181,12 @@ redactr scan — .
 
   ```bash
   # .git/hooks/pre-commit  — block commits that contain secrets
-  npx redactr scan . || { echo "Secret detected — commit aborted."; exit 1; }
+  npx @vicbrzin/redactr scan . || { echo "Secret detected — commit aborted."; exit 1; }
   ```
 
   ```yaml
   # GitHub Actions — fail the build on a leak
-  - run: npx redactr scan .
+  - run: npx @vicbrzin/redactr scan .
   ```
 
 ### Make it automatic — never leak by accident
@@ -196,7 +196,7 @@ You shouldn't have to *remember* to scan. One command wires Redactr into git so
 all locally, nothing uploaded:
 
 ```bash
-npx redactr protect
+npx @vicbrzin/redactr protect
 ```
 
 ```text
@@ -236,7 +236,7 @@ must pass their **check digits**. The same engine powers both `redact()` and
 | **Personal (PII)** | Emails, phone numbers, US SSN, Brazilian **CPF** & **CNPJ** (digit-validated) |
 | **Network** | IPv4, IPv6, MAC addresses |
 
-Run `npx redactr --list` to see them all. Each is a tiny, self-contained entry in
+Run `npx @vicbrzin/redactr --list` to see them all. Each is a tiny, self-contained entry in
 [`src/detectors.js`](src/detectors.js) — adding one is a few lines + a test.
 
 ## 📚 API

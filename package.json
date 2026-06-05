@@ -1,8 +1,11 @@
 {
-  "name": "redactr",
+  "name": "@vicbrzin/redactr",
   "version": "0.4.0",
   "description": "Scrub secrets & PII (API keys, tokens, emails, cards, CPF/CNPJ...) from text before you paste it into AI, issues or pastebins. Reversible, 100% client-side, zero runtime dependencies.",
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "src/index.js",
   "exports": {
     ".": "./src/index.js",

@@ -8,7 +8,7 @@
  * you can redact -> ask the model -> restore.
  *
  * @example
- * import { redact, restore } from "redactr";
+ * import { redact, restore } from "@vicbrzin/redactr";
  *
  * const { text, map } = redact("email me at ada@example.com");
  * // text -> "email me at [[EMAIL_1]]"
