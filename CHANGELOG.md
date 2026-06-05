@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/) and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-06-05
+
+### Added
+
+- **`redactr protect`** — one command installs a git **pre-commit hook** that
+  automatically scans every commit and **blocks** it if a secret is staged. No
+  need to remember to run anything; nothing is pasted or uploaded. Remove with
+  `redactr protect --uninstall`.
+- **`redactr scan --staged`** — scans only the files staged in git (reads the
+  staged blob via `git show`), which is what the hook uses.
+- The hook resolves `redactr` offline: global install → local
+  `node_modules/.bin` → this CLI by absolute path.
+
 ## [0.3.0] - 2026-06-05
 
 ### Added

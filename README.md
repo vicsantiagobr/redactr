@@ -189,6 +189,29 @@ redactr scan — .
   - run: npx redactr scan .
   ```
 
+### Make it automatic — never leak by accident
+
+You shouldn't have to *remember* to scan. One command wires Redactr into git so
+**every commit is checked automatically and blocked if a secret slips in** —
+all locally, nothing uploaded:
+
+```bash
+npx redactr protect
+```
+
+```text
+✓ Installed pre-commit hook at .git/hooks/pre-commit
+  Every commit now runs redactr scan --staged and is blocked if a secret is found.
+```
+
+From then on a `git commit` that stages a key simply fails before it can ever
+reach GitHub. Remove it with `redactr protect --uninstall`.
+
+> **Honest scope:** this stops the most common leak — accidentally committing or
+> publishing a secret. It is not a firewall and can't prevent every breach
+> (misconfigured servers, phishing, malicious dependencies). Pair it with secret
+> rotation and least-privilege keys.
+
 ## 🧠 How it works
 
 1. Every detector runs over the text and reports candidate spans (using the

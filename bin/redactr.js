@@ -15,7 +15,12 @@
  */
 
 import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
+import {
+  mkdirSync, chmodSync, existsSync, rmSync,
+} from "node:fs";
 import { join, basename } from "node:path";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { redact, restore, listDetectors } from "../src/redactor.js";
 import { scanText } from "../src/scanner.js";
 import { VERSION } from "../src/version.js";
@@ -35,14 +40,19 @@ Usage:
   redactr --list                 List available detectors
 
   redactr scan [path]            Scan a file or directory for leaked secrets
+    --staged                     Scan only files staged in git (for hooks)
     --json                       Machine-readable findings
     --no-git-check               Skip the .env / .gitignore check
+
+  redactr protect [path]         Install a git pre-commit hook that auto-scans
+                                 every commit and blocks leaks (--uninstall to remove)
 
   redactr --version | --help
 
 Examples:
   cat app.log | redactr --map map.json > clean.log
   redactr scan .                 # great as a pre-commit / CI guard
+  redactr protect                # make this repo leak-proof on every commit
 
 Everything runs locally. No network access, ever.`;
 
@@ -134,6 +144,39 @@ function envIsGitignored(root) {
 }
 
 /**
+ * Read the staged version of every added/modified file (for the pre-commit
+ * hook). Uses `git show :path` so partial staging is handled correctly.
+ * @param {string} root
+ * @returns {{file:string, buf:Buffer}[]}
+ */
+function stagedEntries(root) {
+  let listed;
+  try {
+    listed = execFileSync(
+      "git",
+      ["-C", root, "diff", "--cached", "--name-only", "--diff-filter=ACM", "-z"],
+      { maxBuffer: 64 * 1024 * 1024 },
+    );
+  } catch {
+    throw new Error("not a git repository, or git is not available");
+  }
+  const names = listed.toString("utf8").split("\0").filter(Boolean);
+  /** @type {{file:string, buf:Buffer}[]} */
+  const entries = [];
+  for (const name of names) {
+    try {
+      const buf = execFileSync("git", ["-C", root, "show", `:${name}`], {
+        maxBuffer: 64 * 1024 * 1024,
+      });
+      entries.push({ file: name, buf });
+    } catch {
+      /* deleted, binary, or unreadable — skip */
+    }
+  }
+  return entries;
+}
+
+/**
  * @param {string[]} args
  * @returns {Promise<number>} process exit code
  */
@@ -141,6 +184,7 @@ async function runScan(args) {
   let path = ".";
   let json = false;
   let gitCheck = true;
+  let staged = false;
   /** @type {string[]|undefined} */ let enable;
   /** @type {string[]|undefined} */ let disable;
 
@@ -148,6 +192,7 @@ async function runScan(args) {
     const a = args[i];
     if (a === "--json") json = true;
     else if (a === "--no-git-check") gitCheck = false;
+    else if (a === "--staged") staged = true;
     else if (a === "--enable") enable = (args[++i] ?? "").split(",").filter(Boolean);
     else if (a === "--disable") disable = (args[++i] ?? "").split(",").filter(Boolean);
     else if (!a.startsWith("-")) path = a;
@@ -155,10 +200,25 @@ async function runScan(args) {
 
   const opts = { enable, disable };
   const root = path;
-  const isDir = (() => {
-    try { return statSync(path).isDirectory(); } catch { return false; }
-  })();
-  const files = isDir ? [...walk(path)] : [path];
+
+  /** @type {{file:string, buf:Buffer}[]} */
+  let entries = [];
+  if (staged) {
+    entries = stagedEntries(root);
+  } else {
+    const isDir = (() => {
+      try { return statSync(path).isDirectory(); } catch { return false; }
+    })();
+    const files = isDir ? [...walk(path)] : [path];
+    for (const file of files) {
+      let size;
+      try { size = statSync(file).size; } catch { continue; }
+      if (size > MAX_FILE_BYTES) continue;
+      let buf;
+      try { buf = readFileSync(file); } catch { continue; }
+      entries.push({ file, buf });
+    }
+  }
 
   /** @type {{file:string, findings:import("../src/scanner.js").Finding[]}[]} */
   const leaks = [];
@@ -168,13 +228,7 @@ async function runScan(args) {
   let envFilesFound = 0;
   let scanned = 0;
 
-  for (const file of files) {
-    let size;
-    try { size = statSync(file).size; } catch { continue; }
-    if (size > MAX_FILE_BYTES) continue;
-
-    let buf;
-    try { buf = readFileSync(file); } catch { continue; }
+  for (const { file, buf } of entries) {
     if (looksBinary(buf)) continue;
     scanned++;
 
@@ -264,6 +318,112 @@ async function runScan(args) {
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Protect command (git pre-commit hook)                                     */
+/* -------------------------------------------------------------------------- */
+
+const HOOK_MARKER = "# redactr-pre-commit";
+
+/**
+ * Build the pre-commit hook script. It tries, in order: a global `redactr`,
+ * a locally installed one, then this exact CLI by absolute path — so it works
+ * offline regardless of how redactr is installed.
+ * @param {string} fallbackCmd
+ */
+const hookScript = (fallbackCmd) => `#!/bin/sh
+${HOOK_MARKER} — auto-installed by 'redactr protect'.
+# Blocks a commit if a secret is staged. Remove with: redactr protect --uninstall
+if command -v redactr >/dev/null 2>&1; then
+  redactr scan --staged
+elif [ -x "node_modules/.bin/redactr" ]; then
+  node_modules/.bin/redactr scan --staged
+else
+  ${fallbackCmd} scan --staged
+fi
+`;
+
+/**
+ * Resolve a repo's hooks directory, handling both a normal `.git` directory
+ * and a `.git` file (worktrees / submodules).
+ * @param {string} root
+ * @returns {string|null}
+ */
+function findGitDir(root) {
+  const dotGit = join(root, ".git");
+  try {
+    if (statSync(dotGit).isDirectory()) return dotGit;
+  } catch {
+    return null;
+  }
+  try {
+    const m = readFileSync(dotGit, "utf8").match(/gitdir:\s*(.+)\s*$/m);
+    if (m) return m[1].trim();
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+/**
+ * Install (or remove) the pre-commit hook.
+ * @param {string[]} args
+ * @returns {number} exit code
+ */
+function runProtect(args) {
+  const uninstall = args.includes("--uninstall");
+  const force = args.includes("--force");
+  const root = args.find((a) => !a.startsWith("-")) ?? ".";
+
+  const gitDir = findGitDir(root);
+  if (!gitDir) {
+    process.stderr.write(`${red("✖")} ${root} is not a git repository.\n`);
+    return 1;
+  }
+  const hookPath = join(gitDir, "hooks", "pre-commit");
+
+  if (uninstall) {
+    try {
+      const current = readFileSync(hookPath, "utf8");
+      if (current.includes(HOOK_MARKER)) {
+        rmSync(hookPath);
+        process.stdout.write(`${green("✓")} Removed redactr pre-commit hook.\n`);
+      } else {
+        process.stdout.write(
+          `${yellow("•")} The pre-commit hook is not managed by redactr — left untouched.\n`,
+        );
+      }
+    } catch {
+      process.stdout.write("No pre-commit hook to remove.\n");
+    }
+    return 0;
+  }
+
+  if (existsSync(hookPath) && !force) {
+    const current = (() => {
+      try { return readFileSync(hookPath, "utf8"); } catch { return ""; }
+    })();
+    if (!current.includes(HOOK_MARKER)) {
+      process.stderr.write(
+        `${yellow("⚠")} A pre-commit hook already exists. Re-run with --force to replace it,\n` +
+          `  or add this line to it manually:\n    redactr scan --staged\n`,
+      );
+      return 1;
+    }
+  }
+
+  mkdirSync(join(gitDir, "hooks"), { recursive: true });
+  const selfPath = fileURLToPath(import.meta.url).replace(/\\/g, "/");
+  writeFileSync(hookPath, hookScript(`node "${selfPath}"`), { mode: 0o755 });
+  try { chmodSync(hookPath, 0o755); } catch { /* windows */ }
+
+  process.stdout.write(
+    `${green("✓")} Installed pre-commit hook at ${dim(hookPath)}\n` +
+      `  Every commit now runs ${bold("redactr scan --staged")} and is blocked if a secret is found.\n` +
+      `  Remove it any time with ${dim("redactr protect --uninstall")}.\n`,
+  );
+  return 0;
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Redact / restore command                                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -344,6 +504,10 @@ async function main() {
   const argv = process.argv.slice(2);
   if (argv[0] === "scan") {
     process.exitCode = await runScan(argv.slice(1));
+    return;
+  }
+  if (argv[0] === "protect") {
+    process.exitCode = runProtect(argv.slice(1));
     return;
   }
   await runRedact(argv);
