@@ -1,0 +1,59 @@
+{
+  "name": "redactr",
+  "version": "0.1.0",
+  "description": "Scrub secrets & PII (API keys, tokens, emails, cards, CPF/CNPJ...) from text before you paste it into AI, issues or pastebins. Reversible, 100% client-side, zero runtime dependencies.",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./detectors": "./src/detectors.js"
+  },
+  "bin": {
+    "redactr": "bin/redactr.js"
+  },
+  "files": [
+    "src",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "typecheck": "tsc --noEmit",
+    "check": "node --check bin/redactr.js && node --check assets/app.js",
+    "ci": "npm run typecheck && npm run check && npm test"
+  },
+  "keywords": [
+    "redact",
+    "redaction",
+    "secrets",
+    "pii",
+    "privacy",
+    "security",
+    "anonymize",
+    "scrub",
+    "mask",
+    "api-key",
+    "llm",
+    "chatgpt",
+    "prompt",
+    "data-loss-prevention",
+    "dlp"
+  ],
+  "author": "vicsantiagobr",
+  "license": "MIT",
+  "homepage": "https://vicsantiagobr.github.io/redactr/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vicsantiagobr/redactr.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vicsantiagobr/redactr/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

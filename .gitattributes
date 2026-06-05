@@ -1,0 +1,7 @@
+# Normalize line endings to LF for everything, so the CLI shebang and the
+# published npm package work on Linux/macOS regardless of the author's OS.
+* text=auto eol=lf
+
+*.svg text eol=lf
+*.png binary
+*.ico binary

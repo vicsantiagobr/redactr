@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Redactr — scrub secrets &amp; PII before you paste it into AI</title>
+    <meta
+      name="description"
+      content="Redactr removes API keys, tokens and personal data from text before you share it with ChatGPT, Claude, an issue tracker or a pastebin. 100% in your browser — nothing is ever uploaded."
+    />
+    <meta name="color-scheme" content="dark light" />
+
+    <!-- Open Graph / social -->
+    <meta property="og:title" content="Redactr — scrub secrets before you paste into AI" />
+    <meta
+      property="og:description"
+      content="Remove API keys, tokens and PII from text before sharing it. 100% client-side, nothing leaves your browser."
+    />
+    <meta property="og:type" content="website" />
+
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#editor">Skip to the tool</a>
+
+    <header class="site-header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">▢</span>
+        <span class="brand-name">Redactr</span>
+      </div>
+      <nav class="site-nav">
+        <span class="privacy-pill" title="No network requests are made.">
+          <span class="dot" aria-hidden="true"></span> 100% in your browser
+        </span>
+        <a
+          class="gh-link"
+          href="https://github.com/vicsantiagobr/redactr"
+          rel="noopener"
+          >GitHub ★</a
+        >
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <h1>Scrub secrets &amp; personal data <em>before</em> you paste it.</h1>
+        <p class="tagline">
+          Paste a log, a stack trace or a config into ChatGPT, an issue or a
+          pastebin — without leaking API keys, tokens, emails, cards or CPFs.
+          Everything runs locally; <strong>nothing is ever uploaded.</strong>
+        </p>
+      </section>
+
+      <div class="tabs" role="tablist" aria-label="Mode">
+        <button id="tab-redact" class="tab is-active" role="tab" aria-selected="true">
+          1 · Redact
+        </button>
+        <button id="tab-restore" class="tab" role="tab" aria-selected="false">
+          2 · Restore the reply
+        </button>
+      </div>
+
+      <!-- REDACT PANEL ------------------------------------------------------ -->
+      <section id="panel-redact" class="panel" role="tabpanel">
+        <div id="editor" class="editor-grid">
+          <div class="pane">
+            <div class="pane-head">
+              <label for="input">Your text</label>
+              <button id="sample-btn" class="ghost-btn" type="button">
+                Load sample
+              </button>
+            </div>
+            <textarea
+              id="input"
+              class="dropzone"
+              spellcheck="false"
+              placeholder="Paste text here, or drop a file…"
+            ></textarea>
+            <p class="hint">Tip: you can drag &amp; drop a file onto this box.</p>
+          </div>
+
+          <div class="pane">
+            <div class="pane-head">
+              <label for="output">Redacted — safe to share</label>
+              <button id="copy-btn" class="ghost-btn" type="button">Copy</button>
+            </div>
+            <textarea id="output" class="readonly" readonly spellcheck="false"></textarea>
+            <p id="stats" class="hint stats" aria-live="polite">Nothing detected yet.</p>
+          </div>
+        </div>
+
+        <details class="detectors" open>
+          <summary>Detectors</summary>
+          <div id="detector-chips" class="chips"></div>
+        </details>
+
+        <details class="mapping">
+          <summary>
+            What was replaced
+            <span class="warn">(sensitive — keep private)</span>
+          </summary>
+          <div id="map-table" class="map-table"></div>
+        </details>
+      </section>
+
+      <!-- RESTORE PANEL ----------------------------------------------------- -->
+      <section id="panel-restore" class="panel" hidden role="tabpanel">
+        <p class="tagline">
+          Got the answer back from the AI? Paste it here and Redactr puts the
+          real values back, using the mapping from your last redaction (kept
+          only in this tab).
+        </p>
+        <div class="editor-grid">
+          <div class="pane">
+            <div class="pane-head">
+              <label for="restore-input">AI reply (with placeholders)</label>
+            </div>
+            <textarea
+              id="restore-input"
+              spellcheck="false"
+              placeholder="Paste the reply that still contains [[EMAIL_1]] etc…"
+            ></textarea>
+          </div>
+          <div class="pane">
+            <div class="pane-head">
+              <label for="restore-output">Restored</label>
+              <button id="restore-copy-btn" class="ghost-btn" type="button">
+                Copy
+              </button>
+            </div>
+            <textarea id="restore-output" class="readonly" readonly spellcheck="false"></textarea>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>
+        Redactr is free and open source (MIT). It is a best-effort helper, not a
+        guarantee — always review the output before sharing.
+      </p>
+      <p>
+        <a href="https://github.com/vicsantiagobr/redactr" rel="noopener"
+          >Source on GitHub</a
+        >
+        ·
+        <code>npx redactr</code>
+      </p>
+    </footer>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <script type="module" src="assets/app.js"></script>
+  </body>
+</html>
