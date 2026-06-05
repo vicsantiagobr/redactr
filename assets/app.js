@@ -85,13 +85,23 @@ function renderStats(stats, total) {
   }
 }
 
-/** @param {import("../src/redactor.js").RedactItem[]} items */
-function renderMap(items) {
+/**
+ * @param {import("../src/redactor.js").RedactItem[]} items
+ * @param {"placeholder"|"fake"|"mask"} [strategy]
+ */
+function renderMap(items, strategy) {
   if (!items.length) {
-    mapTableEl.innerHTML = `<p class="map-empty">Nothing to show. Redacted values will appear here.</p>`;
+    mapTableEl.innerHTML = `<p class="map-empty">Nothing to show. Replaced values will appear here.</p>`;
     return;
   }
   mapTableEl.innerHTML = "";
+  if (strategy === "mask") {
+    const note = document.createElement("p");
+    note.className = "map-empty";
+    note.textContent =
+      "Mask is one-way — the Restore tab can't bring these back.";
+    mapTableEl.appendChild(note);
+  }
   for (const item of items) {
     const row = document.createElement("div");
     row.className = "map-row";
@@ -111,11 +121,18 @@ function renderMap(items) {
 /* -------------------------------------------------------------------------- */
 
 function run() {
-  const result = redact(input.value, { disable: [...disabled] });
+  const strategy = /** @type {"placeholder"|"fake"|"mask"} */ (
+    /** @type {HTMLSelectElement} */ ($("strategy")).value
+  );
+  const result = redact(input.value, {
+    disable: [...disabled],
+    strategy,
+    seed: 1,
+  });
   output.value = result.text;
   lastMap = result.map;
   renderStats(result.stats, result.total);
-  renderMap(result.items);
+  renderMap(result.items, strategy);
   // keep the restore tab in sync if the user already pasted a reply
   if (restoreInput.value) {
     restoreOutput.value = restore(restoreInput.value, lastMap);
@@ -192,6 +209,7 @@ function init() {
   setupDropzone();
 
   input.addEventListener("input", debounce(run));
+  /** @type {HTMLSelectElement} */ ($("strategy")).addEventListener("change", run);
   restoreInput.addEventListener(
     "input",
     debounce(() => {

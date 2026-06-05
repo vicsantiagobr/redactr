@@ -83,7 +83,14 @@
           <div class="pane">
             <div class="pane-head">
               <label for="output">Redacted — safe to share</label>
-              <button id="copy-btn" class="ghost-btn" type="button">Copy</button>
+              <div class="head-controls">
+                <select id="strategy" class="select" title="How to replace sensitive values">
+                  <option value="placeholder">Placeholders</option>
+                  <option value="fake">Realistic fakes ✨</option>
+                  <option value="mask">Mask</option>
+                </select>
+                <button id="copy-btn" class="ghost-btn" type="button">Copy</button>
+              </div>
             </div>
             <textarea id="output" class="readonly" readonly spellcheck="false"></textarea>
             <p id="stats" class="hint stats" aria-live="polite">Nothing detected yet.</p>

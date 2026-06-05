@@ -17,5 +17,6 @@
 
 export { redact, restore, listDetectors, detectorsByType, findMatches } from "./redactor.js";
 export { scanText, maskValue } from "./scanner.js";
+export { generateFake, maskInline, seededRandom, formatPreservingScramble } from "./fake.js";
 export { DETECTORS, luhn, isValidCPF, isValidCNPJ } from "./detectors.js";
 export { VERSION } from "./version.js";

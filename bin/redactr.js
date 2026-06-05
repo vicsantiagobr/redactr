@@ -28,6 +28,9 @@ Usage:
   redactr --restore <file>       Restore text using a previously saved map
   redactr --enable <a,b,...>     Only run these detector types
   redactr --disable <a,b,...>    Run every detector except these
+  redactr --fake                 Replace with realistic, valid, reversible fakes
+  redactr --mask                 Replace with bullets (a••@e••.com; not reversible)
+  redactr --seed <n>             Seed for --fake (deterministic output)
   redactr --json                 Print the full result as JSON
   redactr --list                 List available detectors
 
@@ -266,7 +269,7 @@ async function runScan(args) {
 
 /** @param {string[]} argv */
 function parseArgs(argv) {
-  /** @type {{ file?: string, map?: string, restore?: string, enable?: string[], disable?: string[], json: boolean, list: boolean, help: boolean, version: boolean }} */
+  /** @type {{ file?: string, map?: string, restore?: string, enable?: string[], disable?: string[], strategy?: "placeholder"|"fake"|"mask", seed?: number, json: boolean, list: boolean, help: boolean, version: boolean }} */
   const opts = { json: false, list: false, help: false, version: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -275,6 +278,10 @@ function parseArgs(argv) {
       case "-v": case "--version": opts.version = true; break;
       case "--json": opts.json = true; break;
       case "--list": opts.list = true; break;
+      case "--fake": opts.strategy = "fake"; break;
+      case "--mask": opts.strategy = "mask"; break;
+      case "--strategy": opts.strategy = /** @type {any} */ (argv[++i]); break;
+      case "--seed": opts.seed = Number(argv[++i]); break;
       case "--map": opts.map = argv[++i]; break;
       case "--restore": opts.restore = argv[++i]; break;
       case "--enable": opts.enable = (argv[++i] ?? "").split(",").filter(Boolean); break;
@@ -310,7 +317,12 @@ async function runRedact(argv) {
     return;
   }
 
-  const result = redact(input, { enable: opts.enable, disable: opts.disable });
+  const result = redact(input, {
+    enable: opts.enable,
+    disable: opts.disable,
+    strategy: opts.strategy,
+    seed: opts.seed,
+  });
   if (opts.map) writeFileSync(opts.map, JSON.stringify(result.map, null, 2));
 
   if (opts.json) {

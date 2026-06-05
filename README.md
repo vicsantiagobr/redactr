@@ -50,8 +50,53 @@ The model reasons about `[[EMAIL_1]]`; you get the real address back in its repl
 + Customer [[EMAIL_1]] (CPF [[CPF_1]]) paid with [[CREDIT_CARD_1]].
 ```
 
+## 🎭 Three ways to redact — including one nobody else has
+
+Most tools only blank things out. Redactr gives you a choice, and the third one
+is the differentiator:
+
+| Strategy | `ada@acme.com` becomes | Reversible | Good for |
+| --- | --- | --- | --- |
+| `placeholder` *(default)* | `[[EMAIL_1]]` | ✅ | letting an LLM reason about structure |
+| **`fake`** ✨ | `mara.silva@example.net` | ✅ | **natural-looking prompts, safe test data** |
+| `mask` | `a••@a••.com` | ❌ | quick one-way display |
+
+**Realistic fakes** are the unique part. Each value is replaced by a believable,
+**deterministic, checksum-valid** stand-in:
+
+- a **CPF/CNPJ** that is *different* but passes the real check-digit algorithm,
+- a credit card that keeps the **brand digit + separators** and passes **Luhn**,
+- an API key that keeps its **recognizable prefix** (`sk-proj-…`, `ghp_…`),
+- an email that actually looks like an email, a valid IP, a JWT-shaped token…
+
+Same input always maps to the same fake, so the text stays internally consistent
+— and it's fully reversible:
+
+```js
+import { redact, restore } from "redactr";
+
+const { text, map } = redact(
+  "charge ada@acme.com, card 4111 1111 1111 1111",
+  { strategy: "fake", seed: 42 },
+);
+// text -> "charge ivanalves@example.com, card 4399 3665 5344 7398"
+//          (valid email)                (passes Luhn, still a Visa)
+restore(modelReply, map); // real values back
+
+```
+
+```bash
+echo "cpf 529.982.247-25" | npx redactr --fake     # -> a different, valid CPF
+```
+
+This makes Redactr two tools in one: a privacy shield for AI prompts **and** a
+generator of safe, realistic test/sample data from production data.
+
 ## ✨ Highlights
 
+- 🎭 **Realistic fakes (unique).** Optionally replace data with deterministic,
+  **checksum-valid** look-alikes (valid CPF/CNPJ, Luhn-valid cards, prefix-kept
+  keys) — natural prompts for AI and safe test data, still reversible.
 - 🔒 **100% local.** No servers, no telemetry, no network calls. The web demo is
   static; the library makes zero requests.
 - ♻️ **Reversible.** Stable placeholders + a mapping let you restore the original
@@ -175,12 +220,14 @@ Run `npx redactr --list` to see them all. Each is a tiny, self-contained entry i
 
 ```ts
 redact(text: string, options?: {
+  strategy?: "placeholder" | "fake" | "mask"; // default "placeholder"
+  seed?: number | string; // deterministic output for "fake"
   enable?: string[];   // only run these detector types
   disable?: string[];  // run all except these
   format?: (type: string, n: number) => string; // custom placeholders
 }): {
   text: string;                       // redacted text
-  map: Record<string, string>;        // placeholder -> original value
+  map: Record<string, string>;        // replacement -> original value
   items: { type, label, placeholder, value, count }[];
   stats: Record<string, number>;      // type -> count
   total: number;

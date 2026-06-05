@@ -1,6 +1,6 @@
 {
   "name": "redactr",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Scrub secrets & PII (API keys, tokens, emails, cards, CPF/CNPJ...) from text before you paste it into AI, issues or pastebins. Reversible, 100% client-side, zero runtime dependencies.",
   "type": "module",
   "main": "src/index.js",

@@ -9,6 +9,7 @@
  */
 
 import { DETECTORS, detectorsByType } from "./detectors.js";
+import { generateFake, maskInline, seededRandom } from "./fake.js";
 
 /**
  * @typedef {import("./detectors.js").Detector} Detector
@@ -33,9 +34,18 @@ import { DETECTORS, detectorsByType } from "./detectors.js";
  */
 
 /**
+ * @typedef {"placeholder" | "fake" | "mask"} RedactStrategy
+ */
+
+/**
  * @typedef {Object} RedactOptions
  * @property {string[]} [enable]   Only run these detector types.
  * @property {string[]} [disable]  Run every detector except these.
+ * @property {RedactStrategy} [strategy] How to replace matches. Default "placeholder".
+ *   - "placeholder": stable tokens like `[[EMAIL_1]]` (reversible).
+ *   - "fake": realistic, checksum-valid, deterministic fakes (reversible).
+ *   - "mask": bullets like `a••@e••.com` (NOT reversible — display only).
+ * @property {number|string} [seed] Seed for the "fake" strategy (deterministic).
  * @property {(type: string, n: number) => string} [format] Custom placeholder format.
  * @property {Detector[]} [detectors] Override the detector list entirely.
  */
@@ -165,6 +175,8 @@ export function redact(text, options = {}) {
     throw new TypeError("redact() expects a string");
   }
   const format = options.format ?? defaultFormat;
+  const strategy = options.strategy ?? "placeholder";
+  const seed = String(options.seed ?? 0);
   const detectors = selectDetectors(options);
   const kept = resolveOverlaps(collectMatches(text, detectors));
 
@@ -176,8 +188,31 @@ export function redact(text, options = {}) {
   const stats = {};
   /** @type {Map<string, RedactItem>} */
   const itemsByKey = new Map();
-  /** @type {Map<string, string>} value+type -> placeholder */
-  const placeholderByValue = new Map();
+  /** @type {Map<string, string>} value+type -> replacement */
+  const replacementByValue = new Map();
+  /** @type {Set<string>} replacements already used (keeps restore unambiguous) */
+  const used = new Set();
+
+  /**
+   * Build the replacement string for a value according to the strategy.
+   * Guarantees uniqueness for reversible strategies so restore() is exact.
+   * @param {string} type
+   * @param {string} value
+   */
+  const makeReplacement = (type, value) => {
+    if (strategy === "mask") return maskInline(value);
+    if (strategy === "fake") {
+      for (let salt = 0; salt < 16; salt++) {
+        const rand = seededRandom(`${seed}:${type}:${value}:${salt}`);
+        const fake = generateFake(type, value, rand);
+        if (fake !== value && (!used.has(fake) || map[fake] === value)) return fake;
+      }
+      // extremely unlikely fallback
+      return generateFake(type, value, seededRandom(`${seed}:${type}:${value}:x`));
+    }
+    counters[type] = (counters[type] ?? 0) + 1;
+    return format(type, counters[type]);
+  };
 
   let out = "";
   let cursor = 0;
@@ -186,16 +221,17 @@ export function redact(text, options = {}) {
   for (const m of kept) {
     const { type, label } = m.detector;
     const key = type + "\u0000" + m.value;
-    let placeholder = placeholderByValue.get(key);
-    if (!placeholder) {
-      counters[type] = (counters[type] ?? 0) + 1;
-      placeholder = format(type, counters[type]);
-      placeholderByValue.set(key, placeholder);
-      map[placeholder] = m.value;
+    let replacement = replacementByValue.get(key);
+    if (replacement === undefined) {
+      replacement = makeReplacement(type, m.value);
+      replacementByValue.set(key, replacement);
+      used.add(replacement);
+      // Only reversible strategies populate the restore map.
+      if (strategy !== "mask") map[replacement] = m.value;
       itemsByKey.set(key, {
         type,
         label,
-        placeholder,
+        placeholder: replacement,
         value: m.value,
         count: 0,
       });
@@ -205,7 +241,7 @@ export function redact(text, options = {}) {
     stats[type] = (stats[type] ?? 0) + 1;
     total += 1;
 
-    out += text.slice(cursor, m.start) + placeholder;
+    out += text.slice(cursor, m.start) + replacement;
     cursor = m.end;
   }
   out += text.slice(cursor);

@@ -4,6 +4,24 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/) and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-06-05
+
+### Added
+
+- **Realistic fake substitution** (`strategy: "fake"`) — the standout feature.
+  Instead of `[[EMAIL_1]]`, swap each value for a believable, deterministic,
+  **checksum-valid** fake: a different-but-valid CPF/CNPJ, a Luhn-valid card
+  that keeps the brand digit and separators, an email that looks like an email,
+  an API key that keeps its recognizable prefix. Same input → same fake, so the
+  text stays consistent and the change is fully reversible via `restore()`.
+- **Mask strategy** (`strategy: "mask"`) — bullets like `a••@e••.com` for quick,
+  one-way display redaction.
+- `seed` option for deterministic fakes.
+- New exports: `generateFake`, `maskInline`, `seededRandom`,
+  `formatPreservingScramble`.
+- CLI flags `--fake`, `--mask`, `--strategy`, `--seed`.
+- Web demo: a strategy selector (Placeholders / Realistic fakes / Mask).
+
 ## [0.2.0] - 2026-06-05
 
 ### Added
