@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/) and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-06-05
+
+### Added
+
+- **Project scanner** — `redactr scan [path]` walks a file or directory and
+  reports hardcoded secrets with `file:line:column` and a **masked** preview
+  (never the raw value). Exits non-zero on findings, so it works as a
+  pre-commit / CI guard.
+- Scanner checks that `.env` files are covered by `.gitignore` and warns when
+  they are at risk of being committed; real `.env` contents are not listed.
+- New library exports: `findMatches()` (the shared detection primitive),
+  `scanText()`, and `maskValue()`.
+
 ## [0.1.0] - 2026-06-05
 
 ### Added

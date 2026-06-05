@@ -123,6 +123,38 @@ function resolveOverlaps(matches) {
 }
 
 /**
+ * @typedef {Object} Match
+ * @property {string} type   Detector type, e.g. "EMAIL".
+ * @property {string} label  Human friendly detector name.
+ * @property {string} value  The matched (sensitive) substring.
+ * @property {number} start  Start offset in the input text.
+ * @property {number} end    End offset in the input text.
+ */
+
+/**
+ * Find every sensitive match in `text`, resolved (no overlaps) and sorted by
+ * position. This is the shared primitive used by both `redact()` and the
+ * project scanner.
+ * @param {string} text
+ * @param {RedactOptions} [options]
+ * @returns {Match[]}
+ */
+export function findMatches(text, options = {}) {
+  if (typeof text !== "string") {
+    throw new TypeError("findMatches() expects a string");
+  }
+  const detectors = selectDetectors(options);
+  const kept = resolveOverlaps(collectMatches(text, detectors));
+  return kept.map((m) => ({
+    type: m.detector.type,
+    label: m.detector.label,
+    value: m.value,
+    start: m.start,
+    end: m.end,
+  }));
+}
+
+/**
  * Redact sensitive data from `text`.
  * @param {string} text
  * @param {RedactOptions} [options]

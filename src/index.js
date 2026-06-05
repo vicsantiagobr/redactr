@@ -15,6 +15,7 @@
  * restore(text, map); // -> "email me at ada@example.com"
  */
 
-export { redact, restore, listDetectors, detectorsByType } from "./redactor.js";
+export { redact, restore, listDetectors, detectorsByType, findMatches } from "./redactor.js";
+export { scanText, maskValue } from "./scanner.js";
 export { DETECTORS, luhn, isValidCPF, isValidCNPJ } from "./detectors.js";
 export { VERSION } from "./version.js";

@@ -62,6 +62,8 @@ The model reasons about `[[EMAIL_1]]`; you get the real address back in its repl
   browser and in Node 18+.
 - 🧩 **20+ detectors** out of the box — API keys, tokens, PII, credit cards
   (Luhn-checked), Brazilian CPF/CNPJ (digit-checked), and more.
+- 🛡️ **Project scanner.** `npx redactr scan .` catches hardcoded secrets before
+  you commit or publish them — works as a pre-commit / CI guard.
 - 🛠️ **Library + CLI + web UI**, all from one tiny codebase.
 
 ## 🚀 Quick start
@@ -104,6 +106,44 @@ module straight into a page — no build step:
 </script>
 ```
 
+## 🛡️ Scan your project for leaks
+
+Redactr's other half: point it at a folder and it flags **hardcoded secrets
+before you commit or publish them** — so a leaked key never ends up on GitHub,
+in a screen share, or in a stolen repo.
+
+```bash
+npx redactr scan .
+```
+
+```text
+redactr scan — .
+
+  src/config.js
+    12:15  OPENAI_KEY      OpenAI API key      sk-…np (51 chars)
+    18:1   AWS_ACCESS_KEY  AWS access key id   AKI…LE (20 chars)
+
+  ✖ 1 .env file(s) with 4 secret(s) are NOT in .gitignore — risk of being committed.
+
+✖ 2 potential leak(s) in 1 file(s).
+```
+
+- **Values are masked** in the report — it tells you *which* key leaked without
+  printing it.
+- It checks that your **`.env` is in `.gitignore`** (the #1 way keys get pushed
+  by accident), and leaves real `.env` contents alone.
+- It **exits non-zero** when it finds something, so it doubles as a guard:
+
+  ```bash
+  # .git/hooks/pre-commit  — block commits that contain secrets
+  npx redactr scan . || { echo "Secret detected — commit aborted."; exit 1; }
+  ```
+
+  ```yaml
+  # GitHub Actions — fail the build on a leak
+  - run: npx redactr scan .
+  ```
+
 ## 🧠 How it works
 
 1. Every detector runs over the text and reports candidate spans (using the
@@ -115,7 +155,8 @@ module straight into a page — no build step:
    `_11`).
 
 Validators cut false positives: credit cards must pass **Luhn**, and CPF/CNPJ
-must pass their **check digits**.
+must pass their **check digits**. The same engine powers both `redact()` and
+`scan` via the shared `findMatches()` primitive.
 
 ## 🔎 What it detects
 
@@ -147,6 +188,11 @@ redact(text: string, options?: {
 
 restore(text: string, map: Record<string, string>): string
 listDetectors(options?): { type: string, label: string }[]
+
+// lower-level / scanning
+findMatches(text, options?): { type, label, value, start, end }[]
+scanText(text, options?): { type, label, line, column, preview, length }[]
+maskValue(value: string): string
 ```
 
 ## ⚠️ Disclaimer
